@@ -50,12 +50,12 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       const owner: string = txEvent.from;
       const contractAddress = txEvent.to;
 
-      let transactions = suspiciousSpenders.get(spender);
+      let suspiciousActivity = suspiciousSpenders.get(spender);
       // Block number where suspicious activity ocurred are kept
       // for the time specified.
-      if (transactions === undefined) {
+      if (suspiciousActivity === undefined) {
         console.log(`for ${spender} adding activity 1`);
-        transactions = [
+        suspiciousActivity = [
           new SpenderActivity(
             txEvent.blockNumber,
             txEvent.hash,
@@ -64,12 +64,12 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
             amount
           ),
         ];
-        suspiciousSpenders.set(spender, transactions);
+        suspiciousSpenders.set(spender, suspiciousActivity);
       } else {
         console.log(
-          `for ${spender} adding activity ${transactions.length + 1}`
+          `for ${spender} adding activity ${suspiciousActivity.length + 1}`
         );
-        transactions.push(
+        suspiciousActivity.push(
           new SpenderActivity(
             txEvent.blockNumber,
             txEvent.hash,
@@ -80,9 +80,9 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
         );
       }
 
-      if (transactions.length >= TIMES_DETECTED) {
+      if (suspiciousActivity.length >= TIMES_DETECTED) {
         console.log("Push findings");
-        findings.push(phishingAlert());
+        findings.push(phishingAlert(spender, suspiciousActivity));
         // stop tracking this account
         suspiciousSpenders.delete(spender);
       }
