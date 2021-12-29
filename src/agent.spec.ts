@@ -1,3 +1,4 @@
+import { BigNumber } from "ethers";
 import { Finding, HandleTransaction } from "forta-agent";
 import { TestTransactionEvent } from "forta-agent-tools";
 import agent from "./agent";
@@ -13,23 +14,43 @@ describe("phising agent", () => {
   let mockProvider: any;
   let handleTransaction: HandleTransaction;
 
-  const createTxEvent = (blockNum: number, spender: string) => {
+  const createTxEvent = (
+    blockNum: number,
+    from: string,
+    to: string,
+    spender: string,
+    amount: BigNumber
+  ) => {
     const txEvent = new TestTransactionEvent();
     txEvent.filterFunction = () => [
       {
         ...({} as any),
-        args: { spender: spender },
+        args: { spender: spender, amount: amount },
       },
     ];
+    txEvent.setTo(to);
+    txEvent.setFrom(from);
     txEvent.setBlock(blockNum);
 
     return txEvent;
   };
 
-  const doTransactions = async (blockSpace: number, spender: string) => {
+  const doTransactions = async (
+    blockSpace: number,
+    spender: string,
+    victims: string[],
+    contracts: string[],
+    amounts: string[]
+  ) => {
     const allFindings: Finding[][] = [];
     for (let i = 1; i <= TIMES_DETECTED; i++) {
-      const txEvent = createTxEvent(blockSpace * i, spender);
+      const txEvent = createTxEvent(
+        blockSpace * i,
+        victims[i % victims.length],
+        contracts[i % contracts.length],
+        spender,
+        BigNumber.from(amounts[i % amounts.length])
+      );
       allFindings.push(await handleTransaction(txEvent));
     }
     return allFindings.flat();
@@ -41,11 +62,21 @@ describe("phising agent", () => {
   });
 
   it("returns no findings if spender is a contract", async () => {
-    const spender = "0x11111";
+    const spender = "0xeeeee";
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0xabcde");
 
-    const findings: Finding[] = await doTransactions(blockSpace, spender);
+    const victims = ["0x1234", "0x4567", "0x89012"];
+    const contracts = ["0xababa", "0xbabab"];
+    const amounts = ["0xfffff"];
+
+    const findings: Finding[] = await doTransactions(
+      blockSpace,
+      spender,
+      victims,
+      contracts,
+      amounts
+    );
 
     expect(findings).toStrictEqual([]);
   });
@@ -55,23 +86,63 @@ describe("phising agent", () => {
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
-    const findings: Finding[] = await doTransactions(blockSpace, spender);
+    const victims = ["0x1234", "0x4567", "0x89012"];
+    const contracts = ["0xababa", "0xbabab"];
+    const amounts = ["0xfffff"];
+
+    const findings: Finding[] = await doTransactions(
+      blockSpace,
+      spender,
+      victims,
+      contracts,
+      amounts
+    );
+
+    expect(findings).toStrictEqual([]);
+  });
+
+  it("returns no findings if amount is set to zero", async () => {
+    const spender = "0x11111";
+    const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
+    mockProvider.getCode.mockResolvedValue("0x");
+
+    const victims = ["0x1234", "0x4567", "0x89012"];
+    const contracts = ["0xababa", "0xbabab"];
+    const amounts = ["0x"];
+
+    const findings: Finding[] = await doTransactions(
+      blockSpace,
+      spender,
+      victims,
+      contracts,
+      amounts
+    );
 
     expect(findings).toStrictEqual([]);
   });
 
   it("returns a finding if spender is a 'normal' EOA", async () => {
-    const spender = "0x22222";
+    const spender = "0x11111";
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
-    const findings: Finding[] = await doTransactions(blockSpace, spender);
+    const victims = ["0x1234", "0x4567", "0x89012"];
+    const contracts = ["0xababa", "0xbabab"];
+    const amounts = ["0xfffff"];
+
+    const findings: Finding[] = await doTransactions(
+      blockSpace,
+      spender,
+      victims,
+      contracts,
+      amounts
+    );
 
     expect(findings).toStrictEqual([phishingAlert()]);
   });
 
   it("returns no finding if spender is a 'normal' EOA but activity is outside BLOCK_RANGE", async () => {
-    const spender = "0x22222";
+    const spender = "0x11111";
     const blockSpace = 2 * Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
