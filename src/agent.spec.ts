@@ -1,6 +1,5 @@
 import { BigNumber } from "ethers";
 import { Finding, HandleTransaction } from "forta-agent";
-import { TestTransactionEvent } from "forta-agent-tools";
 import agent from "./agent";
 import { BLOCK_RANGE, TIMES_DETECTED } from "./const";
 import { phishingAlert, SpenderActivity, TestUtils } from "./utils";
@@ -13,6 +12,10 @@ import { phishingAlert, SpenderActivity, TestUtils } from "./utils";
 describe("phising agent", () => {
   let mockProvider: any;
   let handleTransaction: HandleTransaction;
+  let victims: string[];
+  let contracts: string[];
+  let amounts: string[];
+
   const testUtils = new TestUtils();
 
   const doTransactions = async (
@@ -37,21 +40,18 @@ describe("phising agent", () => {
     return allFindings.flat();
   };
 
-  const doSuspActivity = () => {};
-
   beforeEach(() => {
     mockProvider = { getCode: jest.fn() };
     handleTransaction = agent.provideHandleTransaction(mockProvider);
+    victims = ["0x1234", "0x4567", "0x89012"];
+    contracts = ["0xababa", "0xbabab"];
+    amounts = ["0xfffff"];
   });
 
   it("returns no findings if spender is a contract", async () => {
     const spender = "0xeeeee";
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0xabcde");
-
-    const victims = ["0x1234", "0x4567", "0x89012"];
-    const contracts = ["0xababa", "0xbabab"];
-    const amounts = ["0xfffff"];
 
     const findings: Finding[] = await doTransactions(
       blockSpace,
@@ -69,10 +69,6 @@ describe("phising agent", () => {
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
-    const victims = ["0x1234", "0x4567", "0x89012"];
-    const contracts = ["0xababa", "0xbabab"];
-    const amounts = ["0xfffff"];
-
     const findings: Finding[] = await doTransactions(
       blockSpace,
       spender,
@@ -89,9 +85,24 @@ describe("phising agent", () => {
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
-    const victims = ["0x1234", "0x4567", "0x89012"];
-    const contracts = ["0xababa", "0xbabab"];
+    // Amount must be zero
     const amounts = ["0x0"];
+
+    const findings: Finding[] = await doTransactions(
+      blockSpace,
+      spender,
+      victims,
+      contracts,
+      amounts
+    );
+
+    expect(findings).toStrictEqual([]);
+  });
+
+  it("returns no findings if spender is zero address", async () => {
+    const spender = "0x0000000000000000000000000000000000000000";
+    const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
+    mockProvider.getCode.mockResolvedValue("0x");
 
     const findings: Finding[] = await doTransactions(
       blockSpace,
@@ -108,10 +119,6 @@ describe("phising agent", () => {
     const spender = "0x11111";
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
-
-    const victims = ["0x1234", "0x4567", "0x89012"];
-    const contracts = ["0xababa", "0xbabab"];
-    const amounts = ["0xfffff"];
 
     const findings: Finding[] = await doTransactions(
       blockSpace,
@@ -138,10 +145,6 @@ describe("phising agent", () => {
     const blockSpace = 2 * Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
-    const victims = ["0x1234", "0x4567", "0x89012"];
-    const contracts = ["0xababa", "0xbabab"];
-    const amounts = ["0xfffff"];
-
     const findings: Finding[] = await doTransactions(
       blockSpace,
       spender,
@@ -153,37 +156,68 @@ describe("phising agent", () => {
     expect(findings).toStrictEqual([]);
   });
 
-  //this one is exploding
-  /* 
-  it("returns multiple findings when multiple 'normal' EOA spenders are detected", async () => {
+  it("returns two findings when 2 of 4 'normal' EOA spenders are detected", async () => {
     const spenders = [
+      "0x1111", // Normal EOA
       "0x2222", // Normal EOA
-      "0x3333", // Normal EOA
       "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be", // Binance Exchange
-      "0x1111", // Smart Contract
+      "0xeeee", // Smart Contract
     ];
-    const blockSpace = Math.floor(BLOCK_RANGE / (TIMES_DETECTED * 4));
-    mockProvider.getCode("0x");
+    // return code when request from contract address
+    mockProvider.getCode = (addr: string) =>
+      addr === "0xeeee" ? "0xabcde" : "0x";
+
+    const blockSpace = Math.floor(BLOCK_RANGE / (TIMES_DETECTED * 2));
+
+    const suspActivity1: SpenderActivity[] = [];
+    const suspActivity2: SpenderActivity[] = [];
 
     const allFindings: Finding[][] = [];
     for (let i = 1; i <= TIMES_DETECTED * 2; i++) {
       const eoaSpender = spenders[i % 2];
       const otherSpender = spenders[(i % 2) + 2];
 
-      const code = (i % 2) + 2 === 3 ? "0xabcde" : "0x";
-      mockProvider.getCode.mockResolvedValue(code);
+      // Creating EOA transaction
+      const tx1 = testUtils.createTxEvent(
+        blockSpace * i,
+        victims[i % victims.length],
+        contracts[i % contracts.length],
+        eoaSpender,
+        BigNumber.from(amounts[i % amounts.length]),
+        ""
+      );
 
-      const tx1 = createTxEvent(blockSpace * i, eoaSpender);
-      const tx2 = createTxEvent(blockSpace * i, otherSpender);
+      // Creating Exchange or Smart Contrat transaction
+      const tx2 = testUtils.createTxEvent(
+        blockSpace * i,
+        victims[i % victims.length],
+        contracts[i % contracts.length],
+        otherSpender,
+        BigNumber.from(amounts[i % amounts.length]),
+        ""
+      );
 
+      // Handling both transactions
       allFindings.push(await handleTransaction(tx1));
       allFindings.push(await handleTransaction(tx2));
+
+      // Simulate generation of suspicious log for EOA
+      // and adding it accordingly
+      const susp = new SpenderActivity(
+        blockSpace * i,
+        "",
+        victims[i % victims.length],
+        contracts[i % contracts.length],
+        BigNumber.from(amounts[i % amounts.length])
+      );
+      eoaSpender === "0x1111"
+        ? suspActivity1.push(susp)
+        : suspActivity2.push(susp);
     }
 
-    console.log(allFindings.flat());
     expect(allFindings.flat()).toStrictEqual([
-      phishingAlert(),
-      phishingAlert(),
+      phishingAlert(spenders[1], suspActivity2),
+      phishingAlert(spenders[0], suspActivity1),
     ]);
-  });*/
+  });
 });
