@@ -1,11 +1,4 @@
-import { TransactionDescription } from "@ethersproject/abi";
-import {
-  FindingType,
-  FindingSeverity,
-  Finding,
-  HandleTransaction,
-  createTransactionEvent,
-} from "forta-agent";
+import { Finding, HandleTransaction } from "forta-agent";
 import { TestTransactionEvent } from "forta-agent-tools";
 import agent from "./agent";
 import { BLOCK_RANGE, TIMES_DETECTED } from "./const";
@@ -20,18 +13,23 @@ describe("phising agent", () => {
   let mockProvider: any;
   let handleTransaction: HandleTransaction;
 
+  const createTxEvent = (blockNum: number, spender: string) => {
+    const txEvent = new TestTransactionEvent();
+    txEvent.filterFunction = () => [
+      {
+        ...({} as any),
+        args: { spender: spender },
+      },
+    ];
+    txEvent.setBlock(blockNum);
+
+    return txEvent;
+  };
+
   const doTransactions = async (blockSpace: number, spender: string) => {
     const allFindings: Finding[][] = [];
     for (let i = 1; i <= TIMES_DETECTED; i++) {
-      const txEvent = new TestTransactionEvent();
-      txEvent.filterFunction = () => [
-        {
-          ...({} as any),
-          args: { spender: spender },
-        },
-      ];
-      txEvent.setBlock(blockSpace * i);
-
+      const txEvent = createTxEvent(blockSpace * i, spender);
       allFindings.push(await handleTransaction(txEvent));
     }
     return allFindings.flat();
@@ -80,5 +78,38 @@ describe("phising agent", () => {
     const findings: Finding[] = await doTransactions(blockSpace, spender);
 
     expect(findings).toStrictEqual([]);
+  });
+
+  //this one is exploding
+  it("returns multiple findings when multiple 'normal' EOA spenders are detected", async () => {
+    const spenders = [
+      "0x2222", // Normal EOA
+      "0x3333", // Normal EOA
+      "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be", // Binance Exchange
+      "0x1111", // Smart Contract
+    ];
+    const blockSpace = Math.floor(BLOCK_RANGE / (TIMES_DETECTED * 4));
+    mockProvider.getCode("0x");
+
+    const allFindings: Finding[][] = [];
+    for (let i = 1; i <= TIMES_DETECTED * 2; i++) {
+      const eoaSpender = spenders[i % 2];
+      const otherSpender = spenders[(i % 2) + 2];
+
+      const code = (i % 2) + 2 === 3 ? "0xabcde" : "0x";
+      mockProvider.getCode.mockResolvedValue(code);
+
+      const tx1 = createTxEvent(blockSpace * i, eoaSpender);
+      const tx2 = createTxEvent(blockSpace * i, otherSpender);
+
+      allFindings.push(await handleTransaction(tx1));
+      allFindings.push(await handleTransaction(tx2));
+    }
+
+    console.log(allFindings.flat());
+    expect(allFindings.flat()).toStrictEqual([
+      phishingAlert(),
+      phishingAlert(),
+    ]);
   });
 });
