@@ -1,15 +1,27 @@
 import { BigNumber } from "ethers";
 import { Finding, FindingSeverity, FindingType } from "forta-agent";
+import { PHISHING_ALERT } from "./const";
 
-export const phishingAlert = () =>
+export const phishingAlert = (
+  spenderAddress: string,
+  spenderActivity: SpenderActivity[]
+) =>
   Finding.fromObject({
-    alertId: "SOME-ID",
-    name: "Some Name",
-    description: "Some description",
+    alertId: PHISHING_ALERT,
+    name: "Probable Phising Attack",
+    description: `Probable phishing attack by ${spenderAddress}`,
     severity: FindingSeverity.High,
-    type: FindingType.Exploit,
+    type: FindingType.Suspicious,
     metadata: {
-      smth: "smth",
+      spenderAddress: spenderAddress,
+      transactions: spenderActivity.map((sa) => sa.transactionHash).toString(),
+      affectedAddresses: spenderActivity
+        .map((sa) => sa.affectedAddress)
+        .toString(),
+      contractAddresses: spenderActivity
+        .map((sa) => sa.contractAddress)
+        .toString(),
+      amounts: spenderActivity.map((sa) => sa.amount).toString(),
     },
   });
 
