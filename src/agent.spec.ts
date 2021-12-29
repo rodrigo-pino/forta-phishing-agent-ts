@@ -9,6 +9,7 @@ import {
 import { TestTransactionEvent } from "forta-agent-tools";
 import agent from "./agent";
 import { BLOCK_RANGE, TIMES_DETECTED } from "./const";
+import { phishingAlert } from "./utils";
 
 //const provider = new ethers.providers.EtherscanProvider(
 // "homestead",
@@ -41,7 +42,7 @@ describe("phising agent", () => {
     handleTransaction = agent.provideHandleTransaction(mockProvider);
   });
 
-  it("return no findings if spender is a contract", async () => {
+  it("returns no findings if spender is a contract", async () => {
     const spender = "0x11111";
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0xabcde");
@@ -51,13 +52,33 @@ describe("phising agent", () => {
     expect(findings).toStrictEqual([]);
   });
 
-  it("return no findings if spender is an exchange", async () => {
+  it("returns no findings if spender is an exchange", async () => {
     const spender = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"; // Binance
     const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
+
+    const findings: Finding[] = await doTransactions(blockSpace, spender);
+
+    expect(findings).toStrictEqual([]);
   });
 
-  //describe("return a finding if spender is a 'normal' EOA", async () => {});
+  it("returns a finding if spender is a 'normal' EOA", async () => {
+    const spender = "0x22222";
+    const blockSpace = Math.floor(BLOCK_RANGE / TIMES_DETECTED);
+    mockProvider.getCode.mockResolvedValue("0x");
 
-  //describe("return no finding if spender is a 'normal' EOA but activity is outside BLOCK_RANGE", async () => {});
+    const findings: Finding[] = await doTransactions(blockSpace, spender);
+
+    expect(findings).toStrictEqual([phishingAlert()]);
+  });
+
+  it("returns no finding if spender is a 'normal' EOA but activity is outside BLOCK_RANGE", async () => {
+    const spender = "0x22222";
+    const blockSpace = 2 * Math.floor(BLOCK_RANGE / TIMES_DETECTED);
+    mockProvider.getCode.mockResolvedValue("0x");
+
+    const findings: Finding[] = await doTransactions(blockSpace, spender);
+
+    expect(findings).toStrictEqual([]);
+  });
 });
