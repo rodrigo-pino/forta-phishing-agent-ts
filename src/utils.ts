@@ -1,6 +1,7 @@
 import { BigNumber } from "ethers";
 import { Finding, FindingSeverity, FindingType } from "forta-agent";
-import { PHISHING_ALERT } from "./const";
+import { TestTransactionEvent } from "forta-agent-tools";
+import { PHISHING_ALERT, TIMES_DETECTED } from "./const";
 
 export const phishingAlert = (
   spenderAddress: string,
@@ -21,7 +22,7 @@ export const phishingAlert = (
       contractAddresses: spenderActivity
         .map((sa) => sa.contractAddress)
         .toString(),
-      amounts: spenderActivity.map((sa) => sa.amount).toString(),
+      amounts: spenderActivity.map((sa) => sa.amount.toString()).toString(),
     },
   });
 
@@ -47,5 +48,53 @@ export class SpenderActivity {
     this.affectedAddress = affectedAddress;
     this.contractAddress = contractAddress;
     this.amount = amount;
+  }
+}
+
+export class TestUtils {
+  public createTxEvent(
+    blockNum: number,
+    from: string,
+    to: string,
+    spender: string,
+    amount: BigNumber,
+    txHash: string = ""
+  ) {
+    const txEvent = new TestTransactionEvent();
+    txEvent.filterFunction = () => [
+      {
+        ...({} as any),
+        args: { spender: spender, amount: amount },
+      },
+    ];
+    txEvent.setTo(to);
+    txEvent.setFrom(from);
+    txEvent.setBlock(blockNum);
+    txEvent.setHash(txHash);
+
+    return txEvent;
+  }
+
+  public suspActivity(
+    blockSpace: number,
+    victims: string[],
+    contracts: string[],
+    amounts: string[],
+    total: number = TIMES_DETECTED
+  ) {
+    const suspiciousActivity: SpenderActivity[] = [];
+    for (let i = 1; i <= total; i++) {
+      suspiciousActivity.push(
+        new SpenderActivity(
+          blockSpace,
+          "",
+          victims[i % victims.length],
+          contracts[i % contracts.length],
+          BigNumber.from(amounts[i % amounts.length])
+        )
+      );
+    }
+
+    return suspiciousActivity;
   }
 }

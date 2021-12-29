@@ -3,7 +3,7 @@ import { Finding, HandleTransaction } from "forta-agent";
 import { TestTransactionEvent } from "forta-agent-tools";
 import agent from "./agent";
 import { BLOCK_RANGE, TIMES_DETECTED } from "./const";
-import { phishingAlert } from "./utils";
+import { phishingAlert, TestUtils } from "./utils";
 
 //const provider = new ethers.providers.EtherscanProvider(
 // "homestead",
@@ -13,38 +13,19 @@ import { phishingAlert } from "./utils";
 describe("phising agent", () => {
   let mockProvider: any;
   let handleTransaction: HandleTransaction;
-
-  const createTxEvent = (
-    blockNum: number,
-    from: string,
-    to: string,
-    spender: string,
-    amount: BigNumber
-  ) => {
-    const txEvent = new TestTransactionEvent();
-    txEvent.filterFunction = () => [
-      {
-        ...({} as any),
-        args: { spender: spender, amount: amount },
-      },
-    ];
-    txEvent.setTo(to);
-    txEvent.setFrom(from);
-    txEvent.setBlock(blockNum);
-
-    return txEvent;
-  };
+  const testUtils = new TestUtils();
 
   const doTransactions = async (
     blockSpace: number,
     spender: string,
     victims: string[],
     contracts: string[],
-    amounts: string[]
+    amounts: string[],
+    total: number = TIMES_DETECTED
   ) => {
     const allFindings: Finding[][] = [];
     for (let i = 1; i <= TIMES_DETECTED; i++) {
-      const txEvent = createTxEvent(
+      const txEvent = testUtils.createTxEvent(
         blockSpace * i,
         victims[i % victims.length],
         contracts[i % contracts.length],
@@ -55,6 +36,8 @@ describe("phising agent", () => {
     }
     return allFindings.flat();
   };
+
+  const doSuspActivity = () => {};
 
   beforeEach(() => {
     mockProvider = { getCode: jest.fn() };
@@ -146,7 +129,17 @@ describe("phising agent", () => {
     const blockSpace = 2 * Math.floor(BLOCK_RANGE / TIMES_DETECTED);
     mockProvider.getCode.mockResolvedValue("0x");
 
-    const findings: Finding[] = await doTransactions(blockSpace, spender);
+    const victims = ["0x1234", "0x4567", "0x89012"];
+    const contracts = ["0xababa", "0xbabab"];
+    const amounts = ["0xfffff"];
+
+    const findings: Finding[] = await doTransactions(
+      blockSpace,
+      spender,
+      victims,
+      contracts,
+      amounts
+    );
 
     expect(findings).toStrictEqual([]);
   });
