@@ -41,7 +41,7 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
         EXCHANGES.has(spender) ||
         (await provider.getCode(spender, txEvent.blockNumber)) !== "0x" ||
         isZeroAddress(spender) ||
-        amount.gt(0)
+        amount.eq(0)
       ) {
         console.log("log belongs to contract or exchange");
         continue;
@@ -99,7 +99,7 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
 }
 
 // Delete every spender's suspicious activity which occurred
-// BLOCK_RANGE + 1 blocks ago
+// BLOCK_RANGE blocks ago
 function updateSuspicious(
   suspiciousSpenders: Map<string, SpenderActivity[]>,
   blockNumber: number
