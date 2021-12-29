@@ -1,7 +1,9 @@
-export const APPROVE_SIG =
+export const APPROVE_FUNC_SIG =
   "function approve(address spender, uint256 amount) external returns (bool)";
-export const INCREASE_ALLOWANCE_SIG =
+export const INCREASE_ALLOWANCE_FUNC_SIG =
   "function increaseAllowance(address spender, uint256 addedValue) public returns (bool)";
+export const TRANSFER_FROM_FUNC_SIG =
+  "function transferFrom(address sender, address recipient, uint256 amount)";
 export const APROVAL_EVENT_SIG =
   "event Approval(address indexed owner, address indexed spender, uint256 value)";
 
