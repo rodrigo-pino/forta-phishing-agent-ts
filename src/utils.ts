@@ -86,7 +86,7 @@ export class TestUtils {
     for (let i = 1; i <= total; i++) {
       suspiciousActivity.push(
         new SpenderActivity(
-          blockSpace,
+          blockSpace * i,
           "",
           victims[i % victims.length],
           contracts[i % contracts.length],
