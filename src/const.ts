@@ -7,5 +7,6 @@ export const TRANSFER_FROM_FUNC_SIG =
 export const APROVAL_EVENT_SIG =
   "event Approval(address indexed owner, address indexed spender, uint256 value)";
 
+export const PHISHING_ALERT = "PHISHING-ALERT-1";
 export const BLOCK_RANGE = 1800;
 export const TIMES_DETECTED = 10;
