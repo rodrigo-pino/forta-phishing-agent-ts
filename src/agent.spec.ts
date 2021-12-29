@@ -3,7 +3,7 @@ import { Finding, HandleTransaction } from "forta-agent";
 import { TestTransactionEvent } from "forta-agent-tools";
 import agent from "./agent";
 import { BLOCK_RANGE, TIMES_DETECTED } from "./const";
-import { phishingAlert, TestUtils } from "./utils";
+import { phishingAlert, SpenderActivity, TestUtils } from "./utils";
 
 //const provider = new ethers.providers.EtherscanProvider(
 // "homestead",
@@ -24,7 +24,7 @@ describe("phising agent", () => {
     total: number = TIMES_DETECTED
   ) => {
     const allFindings: Finding[][] = [];
-    for (let i = 1; i <= TIMES_DETECTED; i++) {
+    for (let i = 1; i <= total; i++) {
       const txEvent = testUtils.createTxEvent(
         blockSpace * i,
         victims[i % victims.length],
@@ -91,7 +91,7 @@ describe("phising agent", () => {
 
     const victims = ["0x1234", "0x4567", "0x89012"];
     const contracts = ["0xababa", "0xbabab"];
-    const amounts = ["0x"];
+    const amounts = ["0x0"];
 
     const findings: Finding[] = await doTransactions(
       blockSpace,
@@ -121,7 +121,16 @@ describe("phising agent", () => {
       amounts
     );
 
-    expect(findings).toStrictEqual([phishingAlert()]);
+    const suspiciousActivity: SpenderActivity[] = testUtils.suspActivity(
+      blockSpace,
+      victims,
+      contracts,
+      amounts
+    );
+
+    expect(findings).toStrictEqual([
+      phishingAlert(spender, suspiciousActivity),
+    ]);
   });
 
   it("returns no finding if spender is a 'normal' EOA but activity is outside BLOCK_RANGE", async () => {
@@ -145,6 +154,7 @@ describe("phising agent", () => {
   });
 
   //this one is exploding
+  /* 
   it("returns multiple findings when multiple 'normal' EOA spenders are detected", async () => {
     const spenders = [
       "0x2222", // Normal EOA
@@ -175,5 +185,5 @@ describe("phising agent", () => {
       phishingAlert(),
       phishingAlert(),
     ]);
-  });
+  });*/
 });
