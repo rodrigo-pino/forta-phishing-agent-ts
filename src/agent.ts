@@ -1,32 +1,21 @@
 import {
   ethers,
-  BlockEvent,
   Finding,
   TransactionEvent,
   getEthersProvider,
 } from "forta-agent";
 import {
   APPROVE_FUNC_SIG,
-  APROVAL_EVENT_SIG,
   BLOCK_RANGE,
   INCREASE_ALLOWANCE_FUNC_SIG,
   TIMES_DETECTED,
-  TRANSFER_FROM_FUNC_SIG,
 } from "./const";
 import EXCHANGES from "./exchanges";
 import { phishingAlert, isZeroAddress } from "./utils";
 
-import erc20Abi from "./erc.abi.json";
-
 const provider = getEthersProvider();
-//const provider = new ethers.providers.EtherscanProvider(
-// "homestead",
-//"7TY68RZP4EI89Z3YYYVVP9WB6TES3G8HAY"
-//);
 
-const iface = new ethers.utils.Interface(erc20Abi);
-
-function provideHandleTransaction(provider: any) {
+function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
   const suspiciousSpenders: Map<string, number[]> = new Map();
   let lastBlockNumber: number = 0;
 
@@ -48,7 +37,7 @@ function provideHandleTransaction(provider: any) {
       // Do not analyze transactions from known exchanges and smart contracts
       if (
         EXCHANGES.has(spender) ||
-        (await provider.getCode(spender)) !== "0x" ||
+        (await provider.getCode(spender, txEvent.blockNumber)) !== "0x" ||
         isZeroAddress(spender)
       ) {
         console.log("log belongs to contract or exchange");
@@ -75,17 +64,6 @@ function provideHandleTransaction(provider: any) {
         // stop tracking this account
         suspiciousSpenders.delete(spender);
       }
-
-      // experimental
-      console.log(log);
-      try {
-        let val = iface.parseTransaction({
-          data: txEvent.transaction.data,
-        });
-        console.log("got func:", val.signature);
-      } catch (error) {
-        console.log("error");
-      }
     }
 
     if (txEvent.blockNumber !== lastBlockNumber) {
@@ -98,13 +76,14 @@ function provideHandleTransaction(provider: any) {
   };
 }
 
-// In every block delete suspicious activity out of BLOCK_RANGE
+// Delete every spender's suspicious activity which occurred
+// BLOCK_RANGE + 1 blocks ago
 function updateSuspicious(
   suspiciousSpenders: Map<string, number[]>,
   blockNumber: number
 ) {
   suspiciousSpenders.forEach((blocks, spender) => {
-    while (blocks[0] - blockNumber > BLOCK_RANGE) {
+    while (blockNumber - blocks[0] > BLOCK_RANGE) {
       blocks.shift();
       if (blocks.length === 0) {
         suspiciousSpenders.delete(spender);
