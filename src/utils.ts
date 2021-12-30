@@ -26,8 +26,8 @@ export const phishingAlert = (
     },
   });
 
-export const isZeroAddress = (address: string) =>
-  address === "0x0000000000000000000000000000000000000000";
+export const isZeroAddress = (address: string): boolean =>
+  BigNumber.from(address).eq(0);
 
 export class SpenderActivity {
   readonly blockNumber: number;
