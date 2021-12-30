@@ -10,7 +10,7 @@ import {
   INCREASE_ALLOWANCE_FUNC_SIG,
   TIMES_DETECTED,
 } from "./const";
-import EXCHANGES from "./exchanges";
+import IGNORE_ADDRESSES from "./ignore";
 import { phishingAlert, isZeroAddress, SpenderActivity } from "./utils";
 import { BigNumber } from "ethers";
 
@@ -38,17 +38,19 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       const amount: BigNumber = log.args.amount;
       // Do not analyze transactions from known exchanges and smart contracts
       if (
-        EXCHANGES.has(spender) ||
-        (await provider.getCode(spender, txEvent.blockNumber)) !== "0x" ||
+        IGNORE_ADDRESSES.has(spender) ||
+        (await provider.getCode(spender /*, txEvent.blockNumber*/)) !== "0x" ||
         isZeroAddress(spender) ||
         amount.eq(0)
       ) {
+        // Log belong to contract or exchange
         console.log("log belongs to contract or exchange");
         continue;
       }
 
+      //fetching transactiond data
       const owner: string = txEvent.from;
-      const contractAddress = txEvent.to;
+      const contractAddress: string = txEvent.to !== null ? txEvent.to : "?";
 
       let suspiciousActivity = suspiciousSpenders.get(spender);
       // Block number where suspicious activity ocurred are kept
@@ -60,7 +62,7 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
             txEvent.blockNumber,
             txEvent.hash,
             owner,
-            contractAddress !== null ? contractAddress : "0x",
+            contractAddress,
             amount
           ),
         ];
@@ -74,11 +76,13 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
             txEvent.blockNumber,
             txEvent.hash,
             owner,
-            contractAddress !== null ? contractAddress : "0x",
+            contractAddress,
             amount
           )
         );
       }
+
+      console.log(suspiciousActivity);
 
       if (suspiciousActivity.length >= TIMES_DETECTED) {
         console.log("Push findings");
