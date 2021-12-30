@@ -1,5 +1,5 @@
 // Exchange set according to Etherscan
-const EXCHANGES = new Set([
+const IGNORE_ADDRESSES = new Set([
   "0x4dc98c79a52968a6c20ce9a7a08d5e8d1c2d5605", // No name tag?
   "0x05f51aab068caa6ab7eeb672f88c180f67f17ec7", // ABCC
   "0x2ddd202174a72514ed522e77972b461b03155525", // Alcumex Exchange
@@ -323,4 +323,4 @@ const EXCHANGES = new Set([
   "0x60d0cc2ae15859f69bf74dadb8ae3bd58434976b", // ZB.com
 ]);
 
-export default EXCHANGES;
+export default IGNORE_ADDRESSES;
