@@ -4,11 +4,6 @@ import agent from "./agent";
 import { BLOCK_RANGE, TIMES_DETECTED } from "./const";
 import { phishingAlert, SpenderActivity, TestUtils } from "./utils";
 
-//const provider = new ethers.providers.EtherscanProvider(
-// "homestead",
-//"7TY68RZP4EI89Z3YYYVVP9WB6TES3G8HAY"
-//);
-
 describe("phising agent", () => {
   let mockProvider: any;
   let handleTransaction: HandleTransaction;
