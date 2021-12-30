@@ -21,7 +21,6 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
   let lastBlockNumber: number = 0;
 
   return async (txEvent: TransactionEvent) => {
-    console.log("Transaction on block:", txEvent.blockNumber);
     const findings: Finding[] = [];
 
     // Select right events somehow
@@ -29,9 +28,6 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       APPROVE_FUNC_SIG,
       INCREASE_ALLOWANCE_FUNC_SIG,
     ]);
-
-    if (logs.length > 0)
-      console.log(`got logs(${logs.length}):`, logs[0].signature);
 
     for (const log of logs) {
       const spender: string = log.args.spender;
@@ -44,7 +40,6 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
         (await provider.getCode(spender)) !== "0x"
       ) {
         // Log belong to contract or exchange
-        console.log("log belongs to contract or exchange");
         continue;
       }
 
@@ -55,7 +50,6 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       let suspiciousActivity = suspiciousSpenders.get(spender);
       // Store suspicious activity details
       if (suspiciousActivity === undefined) {
-        console.log(`for ${spender} adding activity 1`);
         suspiciousActivity = [
           new SpenderActivity(
             txEvent.blockNumber,
@@ -67,9 +61,6 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
         ];
         suspiciousSpenders.set(spender, suspiciousActivity);
       } else {
-        console.log(
-          `for ${spender} adding activity ${suspiciousActivity.length + 1}`
-        );
         suspiciousActivity.push(
           new SpenderActivity(
             txEvent.blockNumber,
@@ -81,10 +72,7 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
         );
       }
 
-      console.log(suspiciousActivity);
-
       if (suspiciousActivity.length >= TIMES_DETECTED) {
-        console.log("Push findings");
         findings.push(phishingAlert(spender, suspiciousActivity));
         // stop tracking this account
         suspiciousSpenders.delete(spender);
@@ -92,7 +80,6 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
     }
 
     if (txEvent.blockNumber !== lastBlockNumber) {
-      console.log("Updating last block number and cleaning");
       lastBlockNumber = txEvent.blockNumber;
       updateSuspicious(suspiciousSpenders, lastBlockNumber);
     }
