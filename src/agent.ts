@@ -39,9 +39,9 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       // Do not analyze transactions from known exchanges and smart contracts
       if (
         IGNORE_ADDRESSES.has(spender) ||
-        (await provider.getCode(spender /*, txEvent.blockNumber*/)) !== "0x" ||
         isZeroAddress(spender) ||
-        amount.eq(0)
+        amount.eq(0) ||
+        (await provider.getCode(spender)) !== "0x"
       ) {
         // Log belong to contract or exchange
         console.log("log belongs to contract or exchange");
@@ -53,8 +53,7 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       const contractAddress: string = txEvent.to !== null ? txEvent.to : "?";
 
       let suspiciousActivity = suspiciousSpenders.get(spender);
-      // Block number where suspicious activity ocurred are kept
-      // for the time specified.
+      // Store suspicious activity details
       if (suspiciousActivity === undefined) {
         console.log(`for ${spender} adding activity 1`);
         suspiciousActivity = [
