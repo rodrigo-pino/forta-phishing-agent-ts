@@ -79,7 +79,7 @@ function provideHandleTransaction(provider: ethers.providers.JsonRpcProvider) {
       }
     }
 
-    if (txEvent.blockNumber !== lastBlockNumber) {
+    if (txEvent.blockNumber > lastBlockNumber) {
       lastBlockNumber = txEvent.blockNumber;
       updateSuspicious(suspiciousSpenders, lastBlockNumber);
     }
